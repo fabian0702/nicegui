@@ -3,6 +3,7 @@ import { CSS2DRenderer, CSS2DObject } from "CSS2DRenderer";
 import { CSS3DRenderer, CSS3DObject } from "CSS3DRenderer";
 import { OrbitControls } from "OrbitControls";
 import { STLLoader } from "STLLoader";
+import { GLTFLoader } from "GLTFLoader";
 
 function texture_geometry(coords) {
   const geometry = new THREE.BufferGeometry();
@@ -73,9 +74,9 @@ export default {
     light.position.set(5, 10, 40);
     this.scene.add(light);
 
-    this.renderer = undefined;
+    let renderer = undefined;
     try {
-      this.renderer = new THREE.WebGLRenderer({
+      renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
         canvas: this.$el.children[0],
@@ -88,21 +89,18 @@ export default {
       this.$el.style.border = "1px solid silver";
       return;
     }
-    this.renderer.setClearColor("#eee");
-    this.renderer.setSize(this.width, this.height);
+    renderer.setClearColor("#eee");
+    renderer.setSize(this.width, this.height);
 
-    this.text_renderer = new CSS2DRenderer({
+    const text_renderer = new CSS2DRenderer({
       element: this.$el.children[1],
     });
-    this.text_renderer.setSize(this.width, this.height);
+    text_renderer.setSize(this.width, this.height);
 
-    this.text3d_renderer = new CSS3DRenderer({
+    const text3d_renderer = new CSS3DRenderer({
       element: this.$el.children[2],
     });
-    this.text3d_renderer.setSize(this.width, this.height);
-
-    this.$nextTick(() => this.resize());
-    window.addEventListener("resize", this.resize, false);
+    text3d_renderer.setSize(this.width, this.height);
 
     if (this.grid) {
       const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshPhongMaterial({ color: "#eee" }));
@@ -116,21 +114,21 @@ export default {
       grid.rotateX(Math.PI / 2);
       this.scene.add(grid);
     }
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls = new OrbitControls(this.camera, renderer.domElement);
 
     const render = () => {
       requestAnimationFrame(() => setTimeout(() => render(), 1000 / 20));
       TWEEN.update();
-      this.renderer.render(this.scene, this.camera);
-      this.text_renderer.render(this.scene, this.camera);
-      this.text3d_renderer.render(this.scene, this.camera);
+      renderer.render(this.scene, this.camera);
+      text_renderer.render(this.scene, this.camera);
+      text3d_renderer.render(this.scene, this.camera);
     };
     render();
 
     const raycaster = new THREE.Raycaster();
     const click_handler = (mouseEvent) => {
-      let x = (mouseEvent.offsetX / this.renderer.domElement.width) * 2 - 1;
-      let y = -(mouseEvent.offsetY / this.renderer.domElement.height) * 2 + 1;
+      let x = (mouseEvent.offsetX / renderer.domElement.width) * 2 - 1;
+      let y = -(mouseEvent.offsetY / renderer.domElement.height) * 2 + 1;
       raycaster.setFromCamera({ x: x, y: y }, this.camera);
       this.$emit("click3d", {
         hits: raycaster
@@ -154,16 +152,13 @@ export default {
 
     this.texture_loader = new THREE.TextureLoader();
     this.stl_loader = new STLLoader();
+    this.gltf_loader = new GLTFLoader();
 
     const connectInterval = setInterval(async () => {
       if (window.socket.id === undefined) return;
       this.$emit("init", { socket_id: window.socket.id });
       clearInterval(connectInterval);
     }, 100);
-  },
-
-  beforeDestroy() {
-    window.removeEventListener("resize", this.resize);
   },
 
   methods: {
@@ -250,6 +245,27 @@ export default {
           geometry = new THREE.BufferGeometry();
           this.stl_loader.load(url, (geometry) => (mesh.geometry = geometry));
         }
+        if (type == "gltf") {
+          const url = args[0];
+          geometry = new THREE.BufferGeometry();
+          this.gltf_loader.load(
+            url,
+            (gltf) => {
+              gltf.scene.scale.set(args[1], args[1], args[1]);
+              gltf.scene.position.set(...args[2]);
+              // Workaround to avoid adding an empty mesh to scene
+              mesh = gltf.scene;
+              mesh.object_id = id;
+              this.objects.set(id, mesh);
+              this.objects.get(parent_id).add(this.objects.get(id));
+            },
+            undefined,
+            function (error) {
+              console.error(error);
+            }
+          );
+          console.log(this.mesh);
+        }
         let material;
         if (wireframe) {
           mesh = new THREE.LineSegments(
@@ -261,9 +277,11 @@ export default {
           mesh = new THREE.Mesh(geometry, material);
         }
       }
-      mesh.object_id = id;
-      this.objects.set(id, mesh);
-      this.objects.get(parent_id).add(this.objects.get(id));
+      if (mesh !== undefined) {
+        mesh.object_id = id;
+        this.objects.set(id, mesh);
+        this.objects.get(parent_id).add(this.objects.get(id));
+      }
     },
     name(object_id, name) {
       if (!this.objects.has(object_id)) return;
@@ -356,14 +374,6 @@ export default {
           this.controls.target.set(p[6], p[7], p[8]);
         })
         .start();
-    },
-    resize() {
-      const { clientWidth, clientHeight } = this.$el;
-      this.renderer.setSize(clientWidth, clientHeight);
-      this.text_renderer.setSize(clientWidth, clientHeight);
-      this.text3d_renderer.setSize(clientWidth, clientHeight);
-      this.camera.aspect = clientWidth / clientHeight;
-      this.camera.updateProjectionMatrix();
     },
   },
 

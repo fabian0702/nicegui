@@ -99,6 +99,17 @@ class Stl(Object3D):
                  wireframe: bool = False,
                  ) -> None:
         super().__init__('stl', url, wireframe)
+        
+
+class Gltf(Object3D):
+
+    def __init__(self,
+                 url: str,
+                 scale:float = 1,
+                 offset:list[float] = [0.0, 0.0, 0.0],
+                 wireframe: bool = False,
+                 ) -> None:
+        super().__init__('gltf', url, scale, offset, wireframe)
 
 
 class Line(Object3D):
