@@ -1,0 +1,60 @@
+app = "nicegui"
+#app = "nicegui-preview"
+kill_signal = "SIGTERM"
+kill_timeout = 5
+processes = []
+
+[build]
+  dockerfile = "fly.dockerfile"
+
+[env]
+
+[deploy]
+# boot a single, new VM with the new release, verify its health, then
+# One by one, each running VM is taken down and replaced by the new release VM
+strategy = "rolling" 
+
+
+[experimental]
+  allowed_public_ports = []
+  auto_rollback = true
+
+[[services]]
+  internal_port = 8080
+  processes = ["app"]
+  protocol = "tcp"
+  script_checks = []
+  [services.concurrency]
+    hard_limit = 200
+    soft_limit = 100
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    interval = "10s"
+    grace_period = "30s"
+    restart_limit = 3
+    timeout = "5s"
+
+  [[services.http_checks]]
+    interval = "20s"
+    grace_period = "1m"
+    method = "get"
+    path = "/"
+    protocol = "http"
+    restart_limit = 3
+    timeout = "10s"
+    tls_skip_verify = false
+    [services.http_checks.headers]
+
+  [metrics]
+  port = 9062
+  path = "/metrics" # default for most prometheus clients

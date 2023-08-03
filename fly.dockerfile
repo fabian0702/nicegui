@@ -1,0 +1,32 @@
+FROM python:3.11.3-slim
+
+LABEL maintainer="Zauberzeug GmbH <nicegui@zauberzeug.com>"
+
+RUN pip install itsdangerous prometheus_client isort docutils pandas plotly matplotlib requests
+
+RUN apt update && apt install curl -y
+
+RUN curl -sSL https://install.python-poetry.org | python3 - && \
+    cd /usr/local/bin && \
+    ln -s ~/.local/bin/poetry && \
+    poetry config virtualenvs.create false
+
+WORKDIR /app
+
+COPY pyproject.toml poetry.lock*  ./
+
+RUN poetry install --no-root --extras "plotly matplotlib"
+
+ADD . .
+
+# ensure unique version to not serve cached and hence potentially wrong static files
+ARG VERSION=unknown
+RUN if [ "$VERSION" = "unknown" ]; then echo "Error: VERSION build argument is required. Use: fly deploy --build-arg VERSION=$(git describe --abbrev=0 --tags --match 'v*' 2>/dev/null | sed 's/^v//' || echo '0.0.0')" && exit 1; fi
+RUN sed -i "/\[tool.poetry\]/,/]/s/version = .*/version = \"$VERSION\"/" pyproject.toml
+
+RUN pip install .
+
+EXPOSE 8080
+EXPOSE 9062
+
+CMD python3 main.py
