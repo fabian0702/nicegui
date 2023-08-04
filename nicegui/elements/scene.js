@@ -264,7 +264,6 @@ export default {
               console.error(error);
             }
           );
-          console.log(this.mesh);
         }
         let material;
         if (wireframe) {

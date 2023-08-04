@@ -35,6 +35,8 @@ class Scene(Element,
                 'lib/three/modules/CSS3DRenderer.js',
                 'lib/three/modules/OrbitControls.js',
                 'lib/three/modules/STLLoader.js',
+                'lib/three/modules/GLTFLoader.js',
+                'lib/three/modules/BufferGeometryUtils.js',
             ]):
     from .scene_objects import Box as box
     from .scene_objects import Curve as curve
