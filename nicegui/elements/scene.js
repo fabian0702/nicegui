@@ -49,15 +49,15 @@ function texture_material(texture) {
 }
 
 class View {
-  constructor(dimensions, look_at, position, fov, focus=10, far=1000, near=0.1,  up=[0, 0, 1]) {
+  constructor(dimensions, look_at, position, fov, focus = 10, far = 1000, near = 0.1, up = [0, 0, 1]) {
     console.log(up);
-    this.camera = new THREE.PerspectiveCamera(fov, dimensions[2]/dimensions[3], near, far);
-    look_at[1] += 0.00001 //To fix weird lookat problem
+    this.camera = new THREE.PerspectiveCamera(fov, dimensions[2] / dimensions[3], near, far);
+    look_at[1] += 0.00001; //To fix weird lookat problem
     this.camera.up.fromArray(up);
     this.camera.lookAt(...look_at);
-    this.camera.focus = focus
+    this.camera.focus = focus;
     this.camera.position.set(...position);
-    [this.left, this.bottom, this.width, this.height] = dimensions
+    [this.left, this.bottom, this.width, this.height] = dimensions;
   }
 }
 
@@ -125,12 +125,9 @@ export default {
       const grid = new THREE.GridHelper(100, 100);
       grid.material.transparent = true;
       grid.material.opacity = 0.2;
-      grid.rotateX(Math.PI / 2);
       this.scene.add(grid);
     }
-    this.views = [
-      new View([0.0, 0.0, 1.0, 1,0], [0, 0, 0], [0, -3, 5], 75, [0, 0, 1]),
-    ];
+    this.views = [new View([0.0, 0.0, 1.0, 1, 0], [0, 0, 0], [0, -3, 5], 75, [0, 0, 1])];
     console.log(this.views);
     this.camera = this.views[0].camera;
     this.controls = new OrbitControls(this.camera, renderer.domElement);
@@ -138,24 +135,24 @@ export default {
     const render = () => {
       requestAnimationFrame(() => setTimeout(() => render(), 1000 / 20));
       TWEEN.update();
-      for ( let i = 0; i < this.views.length; ++ i ) {
-        const view = this.views[ i ];
+      for (let i = 0; i < this.views.length; ++i) {
+        const view = this.views[i];
         const camera = view.camera;
-        const left = Math.floor( this.width * view.left );
-        const bottom = Math.floor( this.height * view.bottom );
-        const width = Math.floor( this.width * view.width );
-        const height = Math.floor( this.height * view.height );
-        renderer.setViewport( left, bottom, width, height );
-        renderer.setScissor( left, bottom, width, height );
-        renderer.setScissorTest( true );
-        renderer.setClearColor( view.background );
+        const left = Math.floor(this.width * view.left);
+        const bottom = Math.floor(this.height * view.bottom);
+        const width = Math.floor(this.width * view.width);
+        const height = Math.floor(this.height * view.height);
+        renderer.setViewport(left, bottom, width, height);
+        renderer.setScissor(left, bottom, width, height);
+        renderer.setScissorTest(true);
+        renderer.setClearColor(view.background);
         camera.aspect = width / height;
-		    camera.updateProjectionMatrix();  
-        renderer.render( this.scene, camera );
+        camera.updateProjectionMatrix();
+        renderer.render(this.scene, camera);
       }
       text_renderer.render(this.scene, this.views[0].camera);
       text3d_renderer.render(this.scene, this.views[0].camera);
-      this.dataUrl = renderer.domElement.toDataURL( 'image/png' );
+      this.dataUrl = renderer.domElement.toDataURL("image/png");
     };
     render();
 
@@ -166,9 +163,12 @@ export default {
       raycaster.setFromCamera({ x: x, y: y }, this.camera);
       this.$emit("click3d", {
         hits: raycaster
-          .intersectObjects(this.scene.children.filter(function( element ) {
-            return element !== undefined;
-         }), true)
+          .intersectObjects(
+            this.scene.children.filter(function (element) {
+              return element !== undefined;
+            }),
+            true
+          )
           .filter((o) => o.object.object_id)
           .map((o) => ({
             object_id: o.object.object_id,
@@ -285,23 +285,38 @@ export default {
           console.log(args);
           let newView = new View(...args);
           this.views.push(newView);
-          for(let i = 0; i < this.views.length; i++) {
+          for (let i = 0; i < this.views.length; i++) {
             let view = this.views[i];
-            let [top1, right1, bottom1, left1] = [view.bottom + view.height, view.left + view.width, view.bottom, view.left]
-            let [top2, right2, bottom2, left2] = [newView.bottom + newView.height, newView.left + newView.width, newView.bottom, newView.left]
-            if(Math.min(Math.abs(top1-bottom2), Math.abs(top2-bottom1)) * Math.min(Math.abs(right1-left2), Math.abs(right2-left1)) < 0.01) continue;
-            if (top2 < top1 && bottom2 >= bottom1 && ( left2 <= left1 || right2 >= right1)) {
+            let [top1, right1, bottom1, left1] = [
+              view.bottom + view.height,
+              view.left + view.width,
+              view.bottom,
+              view.left,
+            ];
+            let [top2, right2, bottom2, left2] = [
+              newView.bottom + newView.height,
+              newView.left + newView.width,
+              newView.bottom,
+              newView.left,
+            ];
+            if (
+              Math.min(Math.abs(top1 - bottom2), Math.abs(top2 - bottom1)) *
+                Math.min(Math.abs(right1 - left2), Math.abs(right2 - left1)) <
+              0.01
+            )
+              continue;
+            if (top2 < top1 && bottom2 >= bottom1 && (left2 <= left1 || right2 >= right1)) {
               this.views[i].bottom = newView.bottom + newView.height;
               this.views[i].height = top1 - view.bottom;
             }
-            if (top2 <= top1 && bottom2 > bottom1 && ( left2 <= left1 || right2 >= right1)) {
-              this.views[i].height = newView.bottom-view.buttom;
+            if (top2 <= top1 && bottom2 > bottom1 && (left2 <= left1 || right2 >= right1)) {
+              this.views[i].height = newView.bottom - view.buttom;
             }
-            if (right2 < right1 && left2 >= left1 && ( bottom2 <= bottom1 || top2 >= top1)) {
+            if (right2 < right1 && left2 >= left1 && (bottom2 <= bottom1 || top2 >= top1)) {
               this.views[i].left = newView.left + newView.width;
               this.views[i].width = right1 - view.left;
             }
-            if (right2 <= right1 && left2 > left1 && ( bottom2 <= bottom1 || top2 >= top1)) {
+            if (right2 <= right1 && left2 > left1 && (bottom2 <= bottom1 || top2 >= top1)) {
               this.views[i].width = newView.left - view.left;
             }
           }
@@ -311,13 +326,12 @@ export default {
           this.objects.set(id, mesh);
           this.objects.get(parent_id).add(this.objects.get(id));
         }
-        if(type=='cameraHelper') {
+        if (type == "cameraHelper") {
           let camid = args[0];
           console.log(id);
           let camera;
-          for(let i = 0; i < this.views.length; i++)
-            if (this.views[i].camera.object_id == camid)
-              camera = this.views[i].camera
+          for (let i = 0; i < this.views.length; i++)
+            if (this.views[i].camera.object_id == camid) camera = this.views[i].camera;
           if (camera == undefined) return;
           console.log(camera);
           let helper = new THREE.CameraHelper(camera);
@@ -326,14 +340,14 @@ export default {
           this.objects.set(id, mesh);
           this.objects.get(parent_id).add(this.objects.get(id));
         }
-        if(type=='img') {
+        if (type == "img") {
           let url = args[0];
           fetch(url, {
-            "headers": {
-              "accept": "application/json"
+            headers: {
+              accept: "application/json",
             },
-            "body": this.dataUrl,
-            "method": "POST",
+            body: this.dataUrl,
+            method: "POST",
           });
         }
         if (type == "gltf") {
