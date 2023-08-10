@@ -43,6 +43,9 @@ class Scene(Element,
     from .scene_objects import Cylinder as cylinder
     from .scene_objects import Extrusion as extrusion
     from .scene_objects import Gltf as gltf
+    from .scene_objects import Img as img
+    from .scene_objects import SubCamera as subCamera
+    from .scene_objects import CameraHelper as cameraHelper
     from .scene_objects import Group as group
     from .scene_objects import Line as line
     from .scene_objects import PointCloud as point_cloud

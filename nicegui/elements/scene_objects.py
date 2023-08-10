@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from .scene_object3d import Object3D
 
@@ -110,6 +110,21 @@ class Gltf(Object3D):
                  wireframe: bool = False,
                  ) -> None:
         super().__init__('gltf', url, scale, offset, wireframe)
+
+class Img(Object3D):
+
+    def __init__(self, url) -> None:
+        super().__init__('img', url, False)
+
+class SubCamera(Object3D):
+
+    def __init__(self, left:float, bottom:float, width:float, height:float, lookat:list[float], position:list[float], fov:float=75, focus:float=10, far:float=1000, near:float=0.1, up=[0,0,1]) -> None:
+        super().__init__('camera', [left, bottom, width, height], lookat, position, fov, focus, far, near, up, False)
+
+class CameraHelper(Object3D):
+
+    def __init__(self, camera:Object3D) -> None:
+        super().__init__('cameraHelper', camera.id, False)
 
 
 class Line(Object3D):
