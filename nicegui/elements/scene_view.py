@@ -1,6 +1,5 @@
-import asyncio
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional
 
 from typing_extensions import Self
 
@@ -8,7 +7,7 @@ from .. import binding
 from ..awaitable_response import AwaitableResponse, NullResponse
 from ..dataclasses import KWONLY_SLOTS
 from ..element import Element
-from ..events import (GenericEventArguments, SceneClickEventArguments, SceneClickHit, SceneDragEventArguments,
+from ..events import (GenericEventArguments, SceneClickEventArguments, SceneClickHit,
                       handle_event)
 from .scene_object3d import Object3D
 
@@ -26,50 +25,20 @@ class SceneCamera:
     up_z: float = 1
 
 
-@dataclass(**KWONLY_SLOTS)
-class SceneObject:
-    id: str = 'scene'
-
-
-class Scene(Element,
-            component='scene.js',
+class Scene_View(Element,
+            component='scene_view.js',
             libraries=['lib/tween/tween.umd.js'],
             exposed_libraries=[
                 'lib/three/three.module.js',
                 'lib/three/modules/CSS2DRenderer.js',
                 'lib/three/modules/CSS3DRenderer.js',
-                'lib/three/modules/DragControls.js',
-                'lib/three/modules/OrbitControls.js',
-                'lib/three/modules/STLLoader.js',
-                'lib/three/modules/GLTFLoader.js',
-                'lib/three/modules/BufferGeometryUtils.js',
             ]):
-    # pylint: disable=import-outside-toplevel
-    from .scene_objects import Box as box
-    from .scene_objects import Curve as curve
-    from .scene_objects import Cylinder as cylinder
-    from .scene_objects import Extrusion as extrusion
-    from .scene_objects import Gltf as gltf
-    from .scene_objects import Group as group
-    from .scene_objects import Line as line
-    from .scene_objects import PointCloud as point_cloud
-    from .scene_objects import QuadraticBezierTube as quadratic_bezier_tube
-    from .scene_objects import Ring as ring
-    from .scene_objects import Sphere as sphere
-    from .scene_objects import SpotLight as spot_light
-    from .scene_objects import Stl as stl
-    from .scene_objects import Text as text
-    from .scene_objects import Text3d as text3d
-    from .scene_objects import Texture as texture
 
     def __init__(self,
                  width: int = 400,
                  height: int = 300,
-                 grid: bool = True,
                  on_click: Optional[Callable[..., Any]] = None,
-                 on_drag_start: Optional[Callable[..., Any]] = None,
-                 on_drag_end: Optional[Callable[..., Any]] = None,
-                 drag_constraints: str = '',
+                 parent_scene:Self=None,
                  ) -> None:
         """3D Scene
 
@@ -85,43 +54,18 @@ class Scene(Element,
         :param on_drag_start: callback to execute when a 3D object is dragged
         :param on_drag_end: callback to execute when a 3D object is dropped
         :param drag_constraints: comma-separated JavaScript expression for constraining positions of dragged objects (e.g. ``'x = 0, z = y / 2'``)
+        :param parent_scene: specifies the parent scene for rendering the same scene as the parent
         """
         super().__init__()
         self._props['width'] = width
         self._props['height'] = height
-        self._props['grid'] = grid
-        self.objects: Dict[str, Object3D] = {}
-        self.stack: List[Union[Object3D, SceneObject]] = [SceneObject()]
+        self._props['parent_id'] = parent_scene.id if parent_scene is not None else ''
         self.camera: SceneCamera = SceneCamera()
-        self._click_handlers = [on_click] if on_click else []
-        self._drag_start_handlers = [on_drag_start] if on_drag_start else []
-        self._drag_end_handlers = [on_drag_end] if on_drag_end else []
+        self._click_handler = on_click
         self.is_initialized = False
         self.on('init', self._handle_init)
         self.on('click3d', self._handle_click)
-        self.on('dragstart', self._handle_drag)
-        self.on('dragend', self._handle_drag)
-        self._props['drag_constraints'] = drag_constraints
 
-    def on_click(self, callback: Callable[..., Any]) -> Self:
-        """Add a callback to be invoked when a 3D object is clicked."""
-        self._click_handlers.append(callback)
-        return self
-
-    def on_drag_start(self, callback: Callable[..., Any]) -> Self:
-        """Add a callback to be invoked when a 3D object is dragged."""
-        self._drag_start_handlers.append(callback)
-        return self
-
-    def on_drag_end(self, callback: Callable[..., Any]) -> Self:
-        """Add a callback to be invoked when a 3D object is dropped."""
-        self._drag_end_handlers.append(callback)
-        return self
-
-    def __enter__(self) -> Self:
-        Object3D.current_scene = self
-        super().__enter__()
-        return self
 
     def __getattribute__(self, name: str) -> Any:
         attribute = super().__getattribute__(name)
@@ -135,13 +79,6 @@ class Scene(Element,
             self.move_camera(duration=0)
             for obj in self.objects.values():
                 obj.send()
-
-    async def initialized(self) -> None:
-        """Wait until the scene is initialized."""
-        event = asyncio.Event()
-        self.on('init', event.set, [])
-        await self.client.connected()
-        await event.wait()
 
     def run_method(self, name: str, *args: Any, timeout: float = 1, check_interval: float = 0.01) -> AwaitableResponse:
         if not self.is_initialized:
@@ -166,25 +103,7 @@ class Scene(Element,
                 z=hit['point']['z'],
             ) for hit in e.args['hits']],
         )
-        for handler in self._click_handlers:
-            handle_event(handler, arguments)
-
-    def _handle_drag(self, e: GenericEventArguments) -> None:
-        arguments = SceneDragEventArguments(
-            sender=self,
-            client=self.client,
-            type=e.args['type'],
-            object_id=e.args['object_id'],
-            object_name=e.args['object_name'],
-            x=e.args['x'],
-            y=e.args['y'],
-            z=e.args['z'],
-        )
-        if arguments.type == 'dragend':
-            self.objects[arguments.object_id].move(arguments.x, arguments.y, arguments.z)
-
-        for handler in (self._drag_start_handlers if arguments.type == 'dragstart' else self._drag_end_handlers):
-            handle_event(handler, arguments)
+        handle_event(self._click_handler, arguments)
 
     def __len__(self) -> int:
         return len(self.objects)
@@ -230,17 +149,3 @@ class Scene(Element,
     def _handle_delete(self) -> None:
         binding.remove(list(self.objects.values()))
         super()._handle_delete()
-
-    def delete_objects(self, predicate: Callable[[Object3D], bool] = lambda _: True) -> None:
-        """Remove objects from the scene.
-
-        :param predicate: function which returns `True` for objects which should be deleted
-        """
-        for obj in list(self.objects.values()):
-            if predicate(obj):
-                obj.delete()
-
-    def clear(self) -> None:
-        """Remove all objects from the scene."""
-        super().clear()
-        self.delete_objects()

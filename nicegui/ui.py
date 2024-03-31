@@ -62,6 +62,7 @@ __all__ = [
     'restructured_text',
     'row',
     'scene',
+    'scene_view',
     'scroll_area',
     'select',
     'separator',
@@ -174,6 +175,7 @@ from .elements.radio import Radio as radio
 from .elements.restructured_text import ReStructuredText as restructured_text
 from .elements.row import Row as row
 from .elements.scene import Scene as scene
+from .elements.scene_view import Scene_View as scene_view
 from .elements.scroll_area import ScrollArea as scroll_area
 from .elements.select import Select as select
 from .elements.separator import Separator as separator
