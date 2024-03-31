@@ -77,8 +77,6 @@ class Scene_View(Element,
         self.is_initialized = True
         with self.client.individual_target(e.args['socket_id']):
             self.move_camera(duration=0)
-            for obj in self.objects.values():
-                obj.send()
 
     def run_method(self, name: str, *args: Any, timeout: float = 1, check_interval: float = 0.01) -> AwaitableResponse:
         if not self.is_initialized:
